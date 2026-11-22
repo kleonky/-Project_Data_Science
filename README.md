@@ -1,120 +1,149 @@
-# Segmentasi Karakteristik Audio Lagu untuk Optimalisasi Kurasi Playlist Otomatis Menggunakan Algoritma K-Means dan Hierarchical Clustering
+# Analisis Segmentasi Karakteristik Audio Lagu untuk Optimalisasi Kurasi Playlist Otomatis Menggunakan Algoritma K-Means dan Hierarchical Clustering
 
-Proyek akhir mata kuliah **Data Science** (kelas Teori dan Praktikum), Program Studi Informatika, Fakultas Teknik Industri, Universitas Pembangunan Nasional "Veteran" Yogyakarta, Tahun Ajaran Ganjil 2026/2027.
+> **Proyek Akhir Praktikum Data Science**  
+> Program Studi Informatika — Fakultas Teknik Industri  
+> Universitas Pembangunan Nasional "Veteran" Yogyakarta
 
-Proyek ini membangun model **clustering** (*unsupervised learning*) untuk mengelompokkan lagu berdasarkan kemiripan karakteristik sinyal audio fisiknya guna mendukung optimalisasi kurasi *playlist* otomatis. Seluruh alur kerja mengikuti kerangka CRISP-DM dan dikerjakan secara lengkap dalam satu notebook (`main.ipynb`).
+---
 
-## Daftar Isi
+## 👥 Identitas Kelompok
 
-1. [Ringkasan Proyek](#ringkasan-proyek)
-2. [Anggota dan Kontribusi](#anggota-dan-kontribusi)
-3. [Sumber Data](#sumber-data)
-4. [Kamus Data](#kamus-data)
-5. [Alur Pengerjaan](#alur-pengerjaan)
-6. [Struktur Repository](#struktur-repository)
-7. [Cara Menjalankan](#cara-menjalankan)
-8. [Asumsi, Batasan, dan Etika](#asumsi-batasan-dan-etika)
-9. [Lisensi dan Referensi](#lisensi-dan-referensi)
+| No | Nama Anggota | NIM | Peran Utama |
+|:--:|:-------------|:---:|:------------|
+| 1 | Yohanes Herang Aji Dharma | 123240191 | Modeling & Error Analysis |
+| 2 | Muhammad Azfa Imaduddin | 123240208 | Data Gathering & Business Understanding |
+| 3 | Rabel Octadian Jhonifer | 123210176 | Data Cleaning & Preprocessing |
+| 4 | Diky Surya Pranata | 123240011 | Exploratory Data Analysis & Visualisasi |
 
-## Ringkasan Proyek
+---
 
-**Masalah.** Pengelompokan lagu secara manual berdasarkan label genre sering kali kurang akurat dalam mencerminkan suasana (*mood*) atau konteks aktivitas pendengar. Dua lagu dengan label genre yang sama (misalnya `pop` atau `indie`) dapat memiliki nuansa akustik yang bertolak belakang—satu bertempo lambat dan bernuansa tenang, sementara lainnya berenergi tinggi dan cocok untuk menari. Selain itu, kurasi *playlist* secara manual pada katalog musik digital yang terus bertumbuh tidak efisien dan rentan subjektivitas.
+## 📌 Ringkasan Proyek
 
-**Solusi.** Model *clustering* yang mengelompokkan lagu secara objektif berdasarkan **9 fitur sinyal audio fisik** (`danceability`, `energy`, `loudness`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`, dan `tempo`) tanpa bergantung pada label genre. Hasil segmentasi dipetakan menjadi profil *playlist* tematik otomatis (seperti *Chill & Acoustic Study*, *High-Energy Workout & Party*, dan *Heavy & Aggressive Rock/Metal*).
+Proyek ini bertujuan mengelompokkan lagu secara otomatis berdasarkan kemiripan 9 karakteristik audio fisik (*danceability, energy, loudness, speechiness, acousticness, instrumentalness, liveness, valence, tempo*) menggunakan paradigma **Unsupervised Learning**. Hasil segmentasi dimanfaatkan sebagai draf otomatis kurasi **playlist tematik** guna mengatasi keterbatasan kurasi manual dan bias label genre konvensional.
 
-**Pemangku kepentingan.** Pengembang aplikasi atau sistem rekomendasi musik, kurator *playlist*, pendengar musik digital, musisi dan industri musik, serta analis data dan akademisi.
+### Rumusan Masalah
+Bagaimana mengelompokkan lagu secara otomatis berdasarkan kemiripan karakteristik audio menggunakan algoritma K-Means dan Hierarchical Clustering, sehingga terbentuk segmen yang dapat diinterpretasikan sebagai profil playlist tematik?
 
-**Metode dan metrik.**
+### Evaluasi Tanpa Target (Metrik Internal)
+Karena tidak ada label ground truth (*unsupervised*), evaluasi menggunakan metrik internal:
+1. **Silhouette Score:** Mengukur separasi dan kepadatan klaster (rentang -1 s.d. 1).
+2. **Davies-Bouldin Index (DBI):** Mengukur rasio sebaran dalam klaster terhadap jarak antarklaster (makin kecil makin baik).
+3. **Calinski-Harabasz Index (CHI):** Mengukur rasio dispersi antarklaster terhadap dalam klaster (makin besar makin baik).
 
-| Aspek | Keterangan |
-|---|---|
-| Jenis tugas | Unsupervised learning, clustering |
-| Fitur masukan | 9 fitur akustik kontinu (terstandarisasi dengan `StandardScaler`) |
-| Model yang dibandingkan | K-Means Clustering (`init='k-means++'`), Hierarchical Agglomerative Clustering (`linkage='ward'`) |
-| Rentang pengujian klaster | $k = 2$ sampai $k = 6$ (dievaluasi dengan Elbow Method & Silhouette Analysis) |
-| Metrik evaluasi | Silhouette Score ($\uparrow$), Davies-Bouldin Index ($\downarrow$), Calinski-Harabasz Index ($\uparrow$) |
-| Reproduksibilitas | `random_state=42` |
+---
 
-Hasil perbandingan metrik, visualisasi klaster (PCA 2D & Dendrogram), profil akustik tiap klaster, dan kesimpulan lengkap tersedia pada bagian *Modeling*, *Evaluation*, dan *Konklusi* di `main.ipynb`.
+## 📂 Data & Preprocessing
 
-## Anggota dan Kontribusi
+- **Sumber Data:** Spotify Tracks Dataset oleh Maharshi Pandya di [Kaggle](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset) (Lisensi CC0 Public Domain).
+- **Subset Analisis:** 10 genre strategis dengan kontras energi audio (*pop, hip-hop, rock, dance, classical, acoustic, metal, jazz, indie, edm*), berukuran awal 10.000 baris.
+- **Cleaning:**
+  - Hapus anomali fisik tempo non-positif (`tempo <= 0`).
+  - Deduplikasi `track_id` (1.047 duplikat lintas genre dihapus dengan mempertahankan kemunculan pertama, seluruh genre per lagu disimpan ke `all_genres`).
+  - **Dataset akhir siap model:** **8.952 baris unik** x 9 fitur audio kontinu.
+- **Feature Scaling:** Seluruh 9 fitur kontinu distandarisasi menggunakan `StandardScaler` ($\mu = 0, \sigma = 1$) sebelum perhitungan jarak Euclidean.
 
-**Kelompok** (Informatika, UPN "Veteran" Yogyakarta)
+---
 
-| No | Nama | NIM |
-|---|---|---|
-| 1 | Yohanes Herang Aji Dharma | 123240191 |
-| 2 | Muhammad Azfa Imaduddin | 123240208 |
-| 3 | Rabel Octadian Jhonifer | 123210176 |
-| 4 | Diky Surya Pranata | 123240011 |
+## 🧠 Pemodelan & Hasil Evaluasi
 
-**Dosen pengampu:** Dhimas Arief Dharmawan, S.T., Ph.D.
+### 1. Penentuan Jumlah Klaster Optimal ($k$)
+Diuji pada rentang $k \in [2, 7]$:
+- Titik siku (*elbow*) kurva inertia berada pada $k = 4$.
+- Silhouette tertinggi untuk kandidat playlist tematik ($k \geq 3$) dicapai pada **$k = 4$ (0,2385)**.
+- Didukung oleh DBI rendah (**1,424**) dan CHI yang tinggi (**2.382,4**), serta ukuran klaster terkecil **8,14%** (memenuhi batas minimal 3%).
 
-**Pembagian pengerjaan pada `main.ipynb`**
+### 2. Perbandingan K-Means vs Hierarchical Clustering (Ward)
+Pada $k = 4$:
 
-| Tahap | Bagian | Penanggung jawab |
-|---|---|---|
-| Business Understanding | Pernyataan masalah, tujuan SMART, pemetaan stakeholder, penentuan metode dan metrik | Yohanes Herang Aji Dharma |
-| Data Gathering | Akuisisi subset 100 data & 10 genre, deskripsi lisensi, penyusunan kamus data | Muhammad Azfa Imaduddin |
-| Data Understanding | Cek missing value, cek duplikasi `track_id`, deteksi outlier menggunakan boxplot | Muhammad Azfa Imaduddin |
-| Data Understanding | Exploratory Data Analysis (distribusi fitur, heatmap korelasi, profil lintas genre) | Rabel Octadian Jhonifer |
-| Data Preparation | Pembersihan nilai hilang dan deduplikasi identitas trek (`track_id`) | Rabel Octadian Jhonifer |
-| Data Preparation | Feature selection (pemisahan metadata vs fitur audio) dan feature scaling (`StandardScaler`) | Diky Surya Pranata |
-| Modeling | Penentuan jumlah klaster optimal ($k$) dengan Elbow Method dan Silhouette Score | Diky Surya Pranata |
-| Modeling | Pelatihan model K-Means Clustering dan Hierarchical Agglomerative Clustering | Diky Surya Pranata |
-| Evaluation & Konklusi | Komparasi metrik evaluasi klaster, visualisasi PCA, cluster profiling playlist, dan konklusi | Yohanes Herang Aji Dharma |
+| Metrik Evaluasi | K-Means (Utama) | Hierarchical Clustering (Pembanding) | Keunggulan |
+|:----------------|:---------------:|:------------------------------------:|:----------:|
+| **Silhouette Score (↑)** | **0,2385** | 0,2110 | **K-Means** |
+| **Davies-Bouldin Index (↓)** | **1,4236** | 1,4552 | **K-Means** |
+| **Calinski-Harabasz Index (↑)** | **2.382,37** | 2.062,25 | **K-Means** |
+| **Waktu Komputasi** | **0,05 detik** | 1,55 detik (30x lebih lambat) | **K-Means** |
+| **Prediksi Lagu Baru (*Cold-Start*)** | **Tersedia (`predict` centroid)** | Tidak langsung (harus hitung ulang) | **K-Means** |
 
-## Sumber Data
+**Tingkat Keselarasan Model:** Adjusted Rand Index (**ARI = 0,634**) dan **87,0% lagu** berada pada klaster yang sepadan, membuktikan struktur klaster stabil dan mencerminkan pola sonik alami.
 
-| Item | Keterangan |
-|---|---|
-| Nama dataset | Spotify Tracks Dataset |
-| Penyedia | Maharshi Pandya, melalui Kaggle |
-| Tautan | https://www.kaggle.com/datasets/maharshipandya/spotify-tracks-dataset |
-| Lisensi | CC0: Public Domain |
-| Metode pengumpulan | Ekstraksi melalui Spotify Web API |
-| Cakupan sampel | Subset 100 baris data yang mewakili 10 genre strategis (`pop`, `hip-hop`, `rock`, `dance`, `classical`, `acoustic`, `metal`, `jazz`, `indie`, `edm` — masing-masing 10 lagu) |
-| File di repository | `data/spotify_100_10genres.csv` |
+---
 
-Dataset memuat informasi identitas lagu, metadata popularitas, kategori genre bawaan Spotify, serta karakteristik sinyal audio numerik hasil ekstraksi Spotify Audio Features.
+## 🎧 Profil 4 Playlist Tematik (Model K-Means)
 
-## Kamus Data
+| Klaster | Nama Playlist Tematik | Proporsi Lagu | Karakter Audio Utama | Genre Dominan | Mood / Rekomendasi Penggunaan |
+|:-------:|:----------------------|:-------------:|:---------------------|:--------------|:------------------------------|
+| **0** | **Urban Beats & Spoken Flow** | 729 (8,14%) | `speechiness` tinggi (0,256; +2,74σ), ritmis (`danceability` 0,703) | Hip-Hop (38,4%), Dance (18,9%), Pop (13,3%) | Pesta santai, nongkrong, penggemar lirik berima |
+| **1** | **Chill & Acoustic Study** | 2.530 (28,26%) | `acousticness` tinggi (0,734; +0,99σ), lembut (`energy` 0,340, `loudness` -11,0 dB) | Jazz (29,4%), Acoustic (24,9%), Indie (14,2%) | Belajar, bekerja santai, relaksasi malam hari |
+| **2** | **Instrumental Calm & Deep Focus** | 778 (8,69%) | `instrumentalness` sangat tinggi (0,825; +2,85σ), `energy` minimal (0,147), sangat hening (-21,8 dB) | Classical (85,7%), Jazz (7,2%) | Meditasi mendalam, fokus belajar tanpa vokal, pengantar tidur |
+| **3** | **High-Energy Workout & Party** | 4.915 (54,90%) | `energy` tinggi (0,740; +0,61σ), lantang (-5,76 dB), elektrik (`acousticness` 0,133) | Metal (18,5%), Dance (15,9%), EDM (13,7%), Rock (12,8%) | Olahraga di gym, pendorong semangat kerja, pesta malam |
 
-| Feature | Description | Data Type | Example |
-|---|---|---|---|
-| `track_id` | ID unik trek lagu dari Spotify API (22 karakter) | Kategorikal (String) | `5SuOikwiRyPMVoIQDJUgSV` |
-| `artists` | Nama artis atau penyanyi | Kategorikal (String) | `Gen Hoshino` |
-| `album_name` | Nama album tempat lagu dirilis | Kategorikal (String) | `Comedy` |
-| `track_name` | Judul lagu | Kategorikal (String) | `Comedy` |
-| `popularity` | Tingkat kepopuleran lagu di platform Spotify (0–100) | Integer | `73` |
-| `duration_ms` | Total durasi lagu dalam satuan milidetik | Integer | `230666` |
-| `explicit` | Indikator keberadaan konten lirik dewasa (`True` / `False`) | Boolean | `False` |
-| `danceability` | Kesesuaian lagu untuk menari berdasarkan ritme dan stabilitas ketukan (0.0–1.0) | Float | `0.676` |
-| `energy` | Ukuran perseptual intensitas, kecepatan, dan aktivitas audio (0.0–1.0) | Float | `0.461` |
-| `key` | Kunci nada keseluruhan menggunakan notasi Pitch Class (-1 s.d. 11) | Integer | `1` |
-| `loudness` | Tingkat kenyaringan rata-rata lagu dalam satuan desibel (-60.0 s.d. 0.0 dB) | Float | `-6.746` |
-| `mode` | Modalitas tangga nada lagu (`0` = Minor, `1` = Major) | Integer biner | `0` |
-| `speechiness` | Deteksi keberadaan kata terucap atau lirik vokal dalam rekaman (0.0–1.0) | Float | `0.143` |
-| `acousticness` | Tingkat keyakinan bahwa trek bersifat akustik tanpa instrumen elektrik (0.0–1.0) | Float | `0.0322` |
-| `instrumentalness` | Prediksi apakah lagu tidak memuat vokal; nilai $>0.5$ cenderung instrumental (0.0–1.0) | Float | `0.000001` |
-| `liveness` | Deteksi keberadaan audiens atau rekaman konser langsung (0.0–1.0) | Float | `0.358` |
-| `valence` | Positivitas musikal; nilai tinggi = ceria/bahagia, nilai rendah = sedih/agresif (0.0–1.0) | Float | `0.715` |
-| `tempo` | Kecepatan ritme lagu dalam satuan *Beats Per Minute* (BPM) | Float | `87.917` |
-| `time_signature` | Perkiraan tanda birama lagu (3 s.d. 7, misal `4` mewakili ketukan 4/4) | Integer | `4` |
-| `track_genre` | Kategori genre bawaan Spotify; tidak dipakai saat latih, hanya untuk evaluasi interpretasi | Kategorikal (String) | `acoustic` |
+---
 
-**Ringkasan kondisi data.**
+## 🔍 Error Analysis (Ambiguitas Klaster)
 
-- Ditemukan nilai hilang (*missing value*) minor pada atribut metadata teks (`artists`, `album_name`, `track_name`), ditangani dengan penghapusan baris (`dropna`).
-- Ditemukan potensi duplikasi pada `track_id` karena satu lagu dapat terdaftar di lebih dari satu kategori `track_genre` pada Spotify API; ditangani dengan deduplikasi berbasis `track_id`.
-- Terdeteksi pencilan (*outlier*) pada `speechiness`, `liveness`, dan `duration_ms` yang merupakan variasi karakteristik alami antar genre (bukan kesalahan input data), sehingga dipertahankan dan ditangani menggunakan standarisasi skala.
-- Terdapat korelasi positif kuat antara `energy` dan `loudness` ($r \approx 0.81$) serta korelasi negatif kuat antara `energy` dan `acousticness` ($r \approx -0.73$).
+- Rata-rata Silhouette: **0,2385**; hanya **2,51% lagu (225 lagu)** yang memiliki $s(i) < 0$ (berada di batas wilayah dua klaster).
+- Lagu ambigu tersebut tidak dibuang, melainkan dijadikan **lagu transisi (*bridge tracks*)** antartema playlist.
+- Fitur paling membedakan antarklaster: `instrumentalness` ($\eta^2 = 0,773$), `acousticness` ($\eta^2 = 0,750$), dan `energy` ($\eta^2 = 0,698$).
 
-**Pemilihan fitur.** Model hanya menggunakan 9 fitur sinyal audio kontinu (`danceability`, `energy`, `loudness`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`, `tempo`). Kolom identitas teks (`track_id`, `artists`, `album_name`, `track_name`), metadata komersial (`popularity`, `duration_ms`), atribut struktural diskrit (`key`, `mode`, `time_signature`, `explicit`), serta label `track_genre` dikeluarkan dari matriks latih agar algoritma mengelompokkan lagu murni berdasarkan kemiripan karakteristik suara.
+---
 
-## Alur Pengerjaan
+## 🗂️ Struktur Direktori Proyek
 
-Seluruh proses analisis dan pemodelan berada di dalam satu notebook, `main.ipynb`, dengan urutan sebagai berikut:
+```
+projek_spotify_coba1/
+├── projek.ipynb                   # Notebook Jupyter lengkap (semua tahap terisi hasil eksperimen)
+├── requirements.txt               # Daftar pustaka Python yang dibutuhkan
+├── README.md                      # Dokumentasi komprehensif proyek
+├── dataset.csv                    # Dataset asli Spotify Tracks (10 genre)
+├── data/
+│   ├── dataset.csv                # Salinan dataset
+│   └── processed/                 # Artefak model & data bersih
+│       ├── kmeans_model.joblib    # Objek model KMeans terlatih
+│       ├── standard_scaler.joblib # Objek StandardScaler terlatih
+│       ├── spotify_clean.csv      # Data setelah pembersihan (8.952 baris)
+│       └── spotify_clustered.csv  # Data lengkap beserta label klaster & nama playlist
+└── figures/                       # Seluruh visualisasi analisis (disimpan beresolusi tinggi)
+    ├── eda_1_distribusi_fitur.png
+    ├── eda_2_boxplot_outlier.png
+    ├── eda_3_heatmap_korelasi.png
+    ├── eda_4_perbandingan_genre.png
+    ├── model_1_elbow_silhouette.png
+    ├── model_2_distribusi_klaster.png
+    ├── eval_1_pca_scatter.png
+    ├── eval_2_dendrogram.png
+    ├── eval_3_profil_heatmap.png
+    ├── eval_4_genre_per_cluster.png
+    └── eval_5_error_analysis.png
+```
 
-1. **Business Understanding**: latar belakang masalah kurasi *playlist*, rumusan pertanyaan bisnis, tujuan SMART, pemetaan stakeholder, serta pemilihan metode dan metrik evaluasi.
-2. **Data Gathering**: pemuatan subset dataset 100 lagu (
+---
+
+## 🚀 Panduan Menjalankan
+
+1. **Clone / Buka Repositori**
+2. **Pasang dependensi Python:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Buka dan jalankan Jupyter Notebook:**
+   ```bash
+   jupyter notebook projek.ipynb
+   ```
+   Pilih menu `Kernel > Restart & Run All`. Seluruh sel akan dieksekusi tanpa error.
+
+---
+
+## 📅 Timeline Proyek (4 Minggu)
+
+| Minggu | Agenda Kerja | Output |
+|:------:|:-------------|:-------|
+| **1** | Business Understanding, Data Gathering, Audit Kualitas, EDA Visual | Perumusan rumusan masalah & metrik, visualisasi distribusi & korelasi |
+| **2** | Data Cleaning, Penanganan Anomali & Duplikasi, `StandardScaler` | Dataset bersih 8.952 baris siap modeling, matriks fitur terstandarisasi |
+| **3** | Eksperimen Modeling ($k=2..7$), K-Means & Hierarchical, Evaluasi Metrik | Plot Elbow & Silhouette, perbandingan performa model |
+| **4** | Profiling Klaster, Error Analysis, Penamaan Playlist, Dokumentasi & README | Model tersimpan, laporan interpretasi playlist tematik, repositori final |
+
+---
+
+## ⚖️ Lisensi & Etika
+- Dataset bersumber dari data publik Spotify API via Kaggle (CC0 1.0).
+- Tidak memuat data pribadi pengguna (PII).
+- Segmentasi bersifat statistik sonik untuk kurasi playlist dan bukan penilaian atas nilai artistik atau kultural karya musik.
